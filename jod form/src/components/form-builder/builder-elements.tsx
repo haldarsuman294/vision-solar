@@ -13,9 +13,11 @@ import { useState } from 'react';
 // --- Sidebar Draggable Tool ---
 export function DraggableSidebarElement({ 
   element, 
+  onClick,
   onDoubleClick 
 }: { 
   element: FormElementDef;
+  onClick?: () => void;
   onDoubleClick?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -31,7 +33,9 @@ export function DraggableSidebarElement({
   return (
     <div
       ref={setNodeRef}
+      onClick={onClick}
       onDoubleClick={onDoubleClick}
+      suppressHydrationWarning
       {...listeners}
       {...attributes}
       className={`

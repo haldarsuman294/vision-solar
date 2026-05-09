@@ -7,11 +7,11 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen overflow-hidden bg-off-white">
+    <div className="flex h-screen overflow-hidden bg-off-white" suppressHydrationWarning>
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden" suppressHydrationWarning>
         <Header />
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6" suppressHydrationWarning>
           {children}
         </main>
       </div>

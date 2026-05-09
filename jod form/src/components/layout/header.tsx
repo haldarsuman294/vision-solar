@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, Clock, FileText, User, MapPin } from 'lucide-react';
+import { Search, X, Clock, FileText, User, MapPin, Bell, Check, Info, FileSignature } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { mockJobs, mockClients } from '@/lib/mock-data';
 
@@ -25,13 +25,25 @@ export function Header() {
   const [showDropdown, setShowDropdown] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const notifRef = useRef<HTMLDivElement>(null);
 
-  // Load recent searches from localStorage
+  // Load recent searches and notifications
   useEffect(() => {
     try {
       const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
       if (stored) setRecentSearches(JSON.parse(stored));
     } catch { /* ignore */ }
+    
+    async function fetchNotifs() {
+      try {
+        const res = await fetch('/api/notifications');
+        if (res.ok) setNotifications(await res.json());
+      } catch (e) { console.error(e); }
+    }
+    fetchNotifs();
   }, []);
 
   // Debounced search
@@ -91,6 +103,13 @@ export function Header() {
       ) {
         setShowDropdown(false);
       }
+      
+      if (
+        notifRef.current &&
+        !notifRef.current.contains(e.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -109,11 +128,25 @@ export function Header() {
     router.push(result.href);
   };
 
+  const markAsRead = async (id: string) => {
+    try {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+    } catch (e) { console.error(e); }
+  };
+
   const iconForType = (type: string) => {
     switch (type) {
       case 'job': return <FileText className="w-4 h-4 text-vision-green" />;
       case 'client': return <User className="w-4 h-4 text-solar-orange" />;
       case 'address': return <MapPin className="w-4 h-4 text-mid-gray" />;
+      case 'esign': return <FileSignature className="w-4 h-4 text-purple-500" />;
+      case 'system': return <Info className="w-4 h-4 text-blue-500" />;
+      case 'form': return <FileText className="w-4 h-4 text-vision-green" />;
       default: return null;
     }
   };
@@ -232,12 +265,74 @@ export function Header() {
         <div className="w-px h-8 bg-light-gray/70"></div>
 
         {/* Notifications */}
-        <button className="relative w-10 h-10 flex items-center justify-center rounded-lg text-mid-gray hover:bg-off-white hover:text-charcoal transition-all group border border-transparent hover:border-light-gray/50">
-          <svg className="w-5 h-5 group-hover:animate-wiggle" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          <span className="absolute top-2 right-2.5 w-2 h-2 bg-solar-orange rounded-full border border-white"></span>
-        </button>
+        <div className="relative" ref={notifRef}>
+          <button 
+            suppressHydrationWarning
+            onClick={() => setShowNotifications(!showNotifications)}
+            className={`relative w-10 h-10 flex items-center justify-center rounded-lg transition-all group border ${
+              showNotifications ? 'bg-accent text-vision-green border-vision-green/20' : 'text-mid-gray hover:bg-off-white hover:text-charcoal border-transparent hover:border-light-gray/50'
+            }`}
+          >
+            <Bell className={`w-5 h-5 ${showNotifications ? '' : 'group-hover:animate-wiggle'}`} />
+            {notifications.some(n => n.unread) && (
+              <span className="absolute top-2.5 right-3 w-2 h-2 bg-solar-orange rounded-full border border-white"></span>
+            )}
+          </button>
+
+          {showNotifications && (
+            <div className="absolute top-[calc(100%+8px)] right-0 w-80 bg-white border border-light-gray rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="px-4 py-3 border-b border-light-gray flex items-center justify-between bg-off-white/50">
+                <h3 className="text-sm font-bold text-charcoal">Notifications</h3>
+                <span className="text-[10px] bg-vision-green/10 text-vision-green px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                  {notifications.filter(n => n.unread).length} New
+                </span>
+              </div>
+              <div className="max-h-[380px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <Bell className="w-8 h-8 text-light-gray mx-auto mb-2 opacity-20" />
+                    <p className="text-xs text-mid-gray font-medium">No notifications yet</p>
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div 
+                      key={n.id} 
+                      className={`px-4 py-3 border-b border-light-gray/40 hover:bg-off-white transition-colors cursor-pointer group relative ${n.unread ? 'bg-vision-green/[0.02]' : ''}`}
+                      onClick={() => markAsRead(n.id)}
+                    >
+                      <div className="flex gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-light-gray/60 ${n.unread ? 'bg-white shadow-sm' : 'bg-off-white opacity-60'}`}>
+                          {iconForType(n.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <p className={`text-xs font-bold truncate ${n.unread ? 'text-charcoal' : 'text-mid-gray'}`}>{n.title}</p>
+                            <span className="text-[10px] text-mid-gray whitespace-nowrap ml-2">{n.time}</span>
+                          </div>
+                          <p className={`text-[11px] leading-relaxed line-clamp-2 ${n.unread ? 'text-dark-gray' : 'text-mid-gray/80'}`}>
+                            {n.description}
+                          </p>
+                        </div>
+                      </div>
+                      {n.unread && (
+                        <div className="absolute right-4 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="bg-vision-green/10 text-vision-green p-1 rounded-md">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="p-2 border-t border-light-gray bg-off-white/30 text-center">
+                <button className="text-[11px] font-bold text-vision-green hover:text-green-dark transition-colors py-1 w-full rounded-md hover:bg-vision-green/5">
+                  View All Activity
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
       </div>
     </header>

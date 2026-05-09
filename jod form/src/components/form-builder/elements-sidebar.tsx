@@ -26,7 +26,7 @@ export function ElementsSidebar({ onAddElement }: { onAddElement?: (element: For
               <div className="grid grid-cols-1 gap-1 px-3">
                 {items.map((el) => (
                   <div key={el.id} className="rounded-lg transition-transform hover:scale-[1.02]">
-                    <DraggableSidebarElement element={el} onDoubleClick={() => onAddElement?.(el)} />
+                    <DraggableSidebarElement element={el} onClick={() => onAddElement?.(el)} onDoubleClick={() => onAddElement?.(el)} />
                   </div>
                 ))}
               </div>

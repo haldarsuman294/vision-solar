@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -20,6 +20,36 @@ export default function DashboardPage() {
   const userName = "Alex";
   const [showImport, setShowImport]       = useState(false);
   const [showDocToForm, setShowDocToForm] = useState(false);
+  const [recentForms, setRecentForms]     = useState<any[]>([]);
+  const [stats, setStats]                 = useState({
+    totalForms: 24,
+    signaturesCollected: 1492,
+    submissionRate: 68.5
+  });
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [formsRes, statsRes] = await Promise.all([
+          fetch('/api/forms'),
+          fetch('/api/stats')
+        ]);
+        
+        if (formsRes.ok) {
+          const formsData = await formsRes.json();
+          setRecentForms(formsData.slice(0, 3));
+        }
+        
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setStats(statsData);
+        }
+      } catch (e) {
+        console.error('Failed to load dashboard data');
+      }
+    }
+    loadData();
+  }, []);
 
   const handleCreateOptionClick = (optionName: string) => {
     if (optionName === 'Start from Scratch') {
@@ -77,7 +107,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-mid-gray uppercase tracking-wider mb-1">Total Forms</p>
-                <h3 className="text-4xl font-bold text-charcoal">24</h3>
+                <h3 className="text-4xl font-bold text-charcoal">{stats.totalForms}</h3>
               </div>
               <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
                 <FileText className="w-6 h-6" />
@@ -91,7 +121,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-mid-gray uppercase tracking-wider mb-1">Signatures Collected</p>
-                <h3 className="text-4xl font-bold text-charcoal">1,492</h3>
+                <h3 className="text-4xl font-bold text-charcoal">{stats.signaturesCollected.toLocaleString()}</h3>
               </div>
               <div className="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-500">
                 <FileSignature className="w-6 h-6" />
@@ -105,7 +135,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-mid-gray uppercase tracking-wider mb-1">Submission Rate</p>
-                <h3 className="text-4xl font-bold text-charcoal">68.5%</h3>
+                <h3 className="text-4xl font-bold text-charcoal">{stats.submissionRate}%</h3>
               </div>
               <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
                 <CheckCircle className="w-6 h-6" />
@@ -119,12 +149,8 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-xl font-bold text-charcoal mb-4 px-1">Recent Forms</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            { title: "Contact Form", responses: 124, lastUpdated: "2 hours ago", status: "Active" },
-            { title: "Event Registration", responses: 89, lastUpdated: "1 day ago", status: "Active" },
-            { title: "Feedback Survey", responses: 312, lastUpdated: "3 days ago", status: "Closed" }
-          ].map((form, index) => (
-            <Card key={index} className="group overflow-hidden rounded-2xl border border-light-gray/60 hover:border-vision-green/40 hover:shadow-xl transition-all cursor-pointer">
+          {recentForms.map((form, index) => (
+            <Card key={form.id || index} className="group overflow-hidden rounded-2xl border border-light-gray/60 hover:border-vision-green/40 hover:shadow-xl transition-all cursor-pointer" onClick={() => router.push('/form/builder')}>
               <CardContent className="p-0">
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
@@ -134,7 +160,7 @@ export default function DashboardPage() {
                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                       form.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                     }`}>
-                      {form.status}
+                      {form.status || 'Active'}
                     </span>
                   </div>
                   <h3 className="text-lg font-bold text-charcoal mb-1 truncate group-hover:text-vision-green transition-colors">
@@ -142,10 +168,10 @@ export default function DashboardPage() {
                   </h3>
                   <div className="flex items-center justify-between mt-4">
                     <p className="text-sm text-dark-gray font-medium">
-                      <span className="text-charcoal font-bold">{form.responses}</span> Responses
+                      <span className="text-charcoal font-bold">{form.submissions || 0}</span> Responses
                     </p>
                     <p className="text-xs text-mid-gray">
-                      {form.lastUpdated}
+                      {form.date}
                     </p>
                   </div>
                 </div>

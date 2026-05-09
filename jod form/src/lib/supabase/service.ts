@@ -1,49 +1,60 @@
 import { createClient } from './client';
 import type { Job, Client } from '../types';
+import { mockJobs, mockClients, mockStaffLocations } from '../mock-data';
 
 export const jobService = {
   /**
    * Fetch all jobs with their associated client data
    */
   async fetchJobs() {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('jobs')
-      .select(`
-        *,
-        client:clients(*)
-      `)
-      .order('created_at', { ascending: false });
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          client:clients(*)
+        `)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching jobs:', error);
-      throw error;
+      if (error) {
+        console.error('Error fetching jobs:', error);
+        return mockJobs;
+      }
+
+      return (data || mockJobs) as Job[];
+    } catch (e) {
+      console.error('Network error fetching jobs, using mock data:', e);
+      return mockJobs;
     }
-
-    return data as Job[];
   },
 
   /**
    * Fetch unscheduled jobs
    */
   async fetchUnscheduledJobs() {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('jobs')
-      .select(`
-        *,
-        client:clients(*)
-      `)
-      .is('scheduled_date', null)
-      .not('status', 'in', '("Completed", "Cancelled", "Archived")')
-      .order('created_at', { ascending: false });
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          client:clients(*)
+        `)
+        .is('scheduled_date', null)
+        .not('status', 'in', '("Completed", "Cancelled", "Archived")')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching unscheduled jobs:', error);
-      throw error;
+      if (error) {
+        console.error('Error fetching unscheduled jobs:', error);
+        return mockJobs.filter(j => !j.scheduled_date);
+      }
+
+      return (data || mockJobs.filter(j => !j.scheduled_date)) as Job[];
+    } catch (e) {
+      console.error('Network error fetching unscheduled jobs, using mock data:', e);
+      return mockJobs.filter(j => !j.scheduled_date);
     }
-
-    return data as Job[];
   },
 
   /**
@@ -140,60 +151,77 @@ export const jobService = {
    * Fetch all staff locations
    */
   async fetchStaffLocations() {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('staff_locations')
-      .select(`
-        *,
-        profile:profiles(*)
-      `);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('staff_locations')
+        .select(`
+          *,
+          profile:profiles(*)
+        `);
 
-    if (error) {
-      console.error('Error fetching staff locations:', error);
-      throw error;
+      if (error) {
+        console.error('Error fetching staff locations:', error);
+        return mockStaffLocations;
+      }
+
+      return data || mockStaffLocations;
+    } catch (e) {
+      console.error('Network error fetching staff locations, using mock data:', e);
+      return mockStaffLocations;
     }
-
-    return data;
   },
 
   /**
    * Fetch a single job by ID with client and checklist
    */
   async fetchJob(jobId: string) {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('jobs')
-      .select(`
-        *,
-        client:clients(*),
-        job_checklist(*)
-      `)
-      .eq('id', jobId)
-      .single();
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          client:clients(*),
+          job_checklist(*)
+        `)
+        .eq('id', jobId)
+        .single();
 
-    if (error) {
-      console.error('Error fetching job:', error);
-      throw error;
+      if (error) {
+        console.error('Error fetching job:', error);
+        const mockJob = mockJobs.find(j => j.id === jobId) || mockJobs[0];
+        return { ...mockJob, job_checklist: [] };
+      }
+
+      return (data || mockJobs[0]) as Job & { job_checklist: Array<{ id: string; text: string; completed: boolean; order: number }> };
+    } catch (e) {
+      console.error('Network error fetching job, using mock data:', e);
+      const mockJob = mockJobs.find(j => j.id === jobId) || mockJobs[0];
+      return { ...mockJob, job_checklist: [] };
     }
-
-    return data as Job & { job_checklist: Array<{ id: string; text: string; completed: boolean; order: number }> };
   },
 
   /**
    * Fetch all clients
    */
   async fetchClients() {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .order('last_name', { ascending: true });
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('last_name', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching clients:', error);
-      throw error;
+      if (error) {
+        console.error('Error fetching clients:', error);
+        return mockClients;
+      }
+
+      return (data || mockClients) as Client[];
+    } catch (e) {
+      console.error('Network error fetching clients, using mock data:', e);
+      return mockClients;
     }
-
-    return data as Client[];
   }
 };

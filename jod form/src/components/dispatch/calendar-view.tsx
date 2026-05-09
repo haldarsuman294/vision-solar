@@ -35,7 +35,7 @@ function MiniCalendar({ selectedDate, onSelect }: { selectedDate: Date; onSelect
         <button onClick={prevMonth} className="text-mid-gray hover:text-charcoal p-1">
           <ChevronLeft className="w-3.5 h-3.5" />
         </button>
-        <span className="text-xs font-semibold text-charcoal">{monthName}</span>
+        <span className="text-xs font-semibold text-charcoal" suppressHydrationWarning>{monthName}</span>
         <button onClick={nextMonth} className="text-mid-gray hover:text-charcoal p-1">
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
@@ -76,7 +76,7 @@ function MiniCalendar({ selectedDate, onSelect }: { selectedDate: Date; onSelect
   );
 }
 
-export function CalendarView() {
+export function CalendarView({ refreshKey }: { refreshKey?: number }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<ViewType>('Day');
 
@@ -111,7 +111,7 @@ export function CalendarView() {
             </button>
           </div>
 
-          <span className="text-sm font-semibold text-solar-orange">{dayLabel} — Today</span>
+          <span className="text-sm font-semibold text-solar-orange" suppressHydrationWarning>{dayLabel} — Today</span>
 
           <div className="flex items-center bg-off-white rounded-md p-0.5 border border-light-gray">
             {VIEWS.map(v => (

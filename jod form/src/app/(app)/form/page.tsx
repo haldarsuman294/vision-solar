@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, FileText, Upload, FileSignature,
@@ -28,24 +28,47 @@ type FormItem = {
   starred: boolean;
 };
 
-const MOCK_FORMS: FormItem[] = [
-  { id: 2, title: 'Form',                               submissions: 0, date: 'Apr 22, 2026', dateLabel: 'edited',  type: 'form',   starred: false },
-  { id: 3, title: 'Form',                               submissions: 0, date: 'Apr 22, 2026', dateLabel: 'edited',  type: 'form',   starred: true  },
-  { id: 4, title: 'Form',                               submissions: 0, date: 'Apr 21, 2026', dateLabel: 'edited',  type: 'form',   starred: false },
-  { id: 5, title: 'Contact Information Collection Form', submissions: 0, date: 'Apr 21, 2026', dateLabel: 'created', type: 'form',  starred: false },
-  { id: 6, title: 'Form',                               submissions: 0, date: 'Apr 21, 2026', dateLabel: 'edited',  type: 'form',   starred: false },
-];
+const MOCK_FORMS: FormItem[] = [];
+
 
 export default function FormsPage() {
   const router = useRouter();
 
-  const [forms, setForms]           = useState<FormItem[]>(MOCK_FORMS);
+  const [forms, setForms]           = useState<FormItem[]>([]);
   const [selected, setSelected]     = useState<Set<number>>(new Set());
   const [openMoreId, setOpenMoreId] = useState<number | null>(null);
   const [search, setSearch]         = useState('');
   const [viewMode, setViewMode]     = useState<'list' | 'grid'>('list');
   const [showImport, setShowImport]   = useState(false);
   const [showDocToForm, setShowDocToForm] = useState(false);
+
+  // Load forms from the local database API
+  const loadForms = async () => {
+    try {
+      const response = await fetch('/api/forms', { cache: 'no-store' });
+      if (response.ok) {
+        const userForms = await response.json();
+        setForms(userForms);
+      }
+    } catch (e) {
+      console.error('Failed to load forms from API');
+    }
+  };
+
+  // Load on mount and whenever the tab becomes visible again (e.g. returning from builder)
+  useEffect(() => {
+    loadForms();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadForms();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleSelect = (id: number) =>
     setSelected(prev => {
@@ -59,11 +82,27 @@ export default function FormsPage() {
     else setSelected(new Set(forms.map(f => f.id)));
   };
 
-  const toggleStar = (id: number) =>
+  const toggleStar = (id: number) => {
     setForms(prev => prev.map(f => f.id === id ? { ...f, starred: !f.starred } : f));
+    // Note: In a full implementation, we would also update the star status in the DB
+  };
 
-  const deleteForm = (id: number) =>
-    setForms(prev => prev.filter(f => f.id !== id));
+  const deleteForm = async (id: number) => {
+    try {
+      // Optimistic update
+      setForms(prev => prev.filter(f => f.id !== id));
+      
+      // Delete from DB
+      await fetch('/api/forms', {
+
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+    } catch (e) {
+      console.error('Failed to delete form');
+    }
+  };
 
   const filtered = forms.filter(f =>
     f.title.toLowerCase().includes(search.toLowerCase())
@@ -238,7 +277,7 @@ export default function FormsPage() {
                     </div>
 
                     {/* Name + meta */}
-                    <div className="flex-1 min-w-0 py-4 cursor-pointer" onClick={() => router.push('/form/builder')}>
+                    <div className="flex-1 min-w-0 py-4 cursor-pointer" onClick={() => router.push(`/form/builder?id=${form.id}`)}>
                       <p className="text-sm font-semibold truncate text-charcoal group-hover:text-vision-green transition-colors">
                         {form.title}
                       </p>
@@ -259,7 +298,7 @@ export default function FormsPage() {
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         title="Edit Form"
-                        onClick={() => router.push('/form/builder')}
+                        onClick={() => router.push(`/form/builder?id=${form.id}`)}
                         className="w-8 h-8 rounded-lg bg-vision-green hover:bg-green-dark text-white flex items-center justify-center shadow-sm transition-all"
                       >
                         <PenLine className="w-4 h-4" />
@@ -282,11 +321,11 @@ export default function FormsPage() {
                         <DropdownMenuContent align="end" className="w-52 shadow-2xl rounded-2xl border border-light-gray/60 p-2 bg-white">
                           {/* Open group */}
                           <p className="px-2 pt-1 pb-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-mid-gray/50">Open</p>
-                          <DropdownMenuItem onClick={() => router.push('/form/builder')} className="cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-charcoal focus:bg-vision-green/5 focus:text-vision-green transition-colors">
+                          <DropdownMenuItem onClick={() => router.push(`/form/builder?id=${form.id}`)} className="cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-charcoal focus:bg-vision-green/5 focus:text-vision-green transition-colors">
                             <div className="w-7 h-7 rounded-lg bg-vision-green/10 flex items-center justify-center shrink-0"><Eye className="w-3.5 h-3.5 text-vision-green" /></div>
                             View
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => router.push('/form/builder')} className="cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-charcoal focus:bg-vision-green/5 focus:text-vision-green transition-colors">
+                          <DropdownMenuItem onClick={() => router.push(`/form/builder?id=${form.id}`)} className="cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-charcoal focus:bg-vision-green/5 focus:text-vision-green transition-colors">
                             <div className="w-7 h-7 rounded-lg bg-vision-green/10 flex items-center justify-center shrink-0"><PenLine className="w-3.5 h-3.5 text-vision-green" /></div>
                             Edit
                           </DropdownMenuItem>
@@ -340,7 +379,7 @@ export default function FormsPage() {
                       ? 'border-vision-green shadow-[0_0_0_2px_rgba(34,197,94,0.2)]'
                       : 'border-light-gray/60 hover:border-vision-green/40'
                   }`}
-                  onClick={() => router.push('/form/builder')}
+                  onClick={() => router.push(`/form/builder?id=${form.id}`)}
                 >
                   {/* Checkbox overlay */}
                   <button
@@ -394,7 +433,7 @@ export default function FormsPage() {
                     <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-light-gray/50">
                       <button
                         title="Edit Form"
-                        onClick={e => { e.stopPropagation(); router.push('/form/builder'); }}
+                        onClick={e => { e.stopPropagation(); router.push(`/form/builder?id=${form.id}`); }}
                         className="w-8 h-8 rounded-lg bg-vision-green hover:bg-green-dark text-white flex items-center justify-center shadow-sm transition-all"
                       >
                         <PenLine className="w-4 h-4" />
@@ -418,11 +457,11 @@ export default function FormsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-52 shadow-2xl rounded-2xl border border-light-gray/60 p-2 bg-white">
                           <p className="px-2 pt-1 pb-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-mid-gray/50">Open</p>
-                          <DropdownMenuItem onClick={e => { e.stopPropagation(); router.push('/form/builder'); }} className="cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-charcoal focus:bg-vision-green/5 focus:text-vision-green transition-colors">
+                          <DropdownMenuItem onClick={e => { e.stopPropagation(); router.push(`/form/builder?id=${form.id}`); }} className="cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-charcoal focus:bg-vision-green/5 focus:text-vision-green transition-colors">
                             <div className="w-7 h-7 rounded-lg bg-vision-green/10 flex items-center justify-center shrink-0"><Eye className="w-3.5 h-3.5 text-vision-green" /></div>
                             View
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={e => { e.stopPropagation(); router.push('/form/builder'); }} className="cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-charcoal focus:bg-vision-green/5 focus:text-vision-green transition-colors">
+                          <DropdownMenuItem onClick={e => { e.stopPropagation(); router.push(`/form/builder?id=${form.id}`); }} className="cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-charcoal focus:bg-vision-green/5 focus:text-vision-green transition-colors">
                             <div className="w-7 h-7 rounded-lg bg-vision-green/10 flex items-center justify-center shrink-0"><PenLine className="w-3.5 h-3.5 text-vision-green" /></div>
                             Edit
                           </DropdownMenuItem>

@@ -11,11 +11,13 @@ import Image from 'next/image';
 export function FormCanvas({
   instances,
   onRemove,
-  onUpdateInstance
+  onUpdateInstance,
+  onSubmit
 }: {
   instances: FormInstance[];
   onRemove: (id: string) => void;
   onUpdateInstance?: (id: string, updates: Partial<FormInstance>) => void;
+  onSubmit?: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'form-canvas',
@@ -69,7 +71,10 @@ export function FormCanvas({
         
         {instances.length > 0 && (
           <div className="mt-8 pt-8 border-t border-light-gray/40 mt-auto">
-             <Button className="w-full text-base font-semibold py-6 bg-vision-green hover:bg-green-dark text-white rounded-lg shadow-md transition-transform hover:translate-y-[-1px]">
+             <Button 
+               onClick={onSubmit}
+               className="w-full text-base font-semibold py-6 bg-vision-green hover:bg-green-dark text-white rounded-lg shadow-md transition-transform hover:translate-y-[-1px]"
+             >
                Finish & Submit Form
              </Button>
           </div>
